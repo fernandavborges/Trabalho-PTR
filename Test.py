@@ -22,8 +22,9 @@ except:
 
 # Bibliotecas importadas -----------------------------
 import time
-import pyRTOS
 
+from click import prompt
+import pyRTOS
 
 # ---------------------------------------------------
 
@@ -40,6 +41,7 @@ PA_VENTOINHA = 'Ventoinha/Pa_Ventoinha'
 MOSQUITO = '/target'
 CORPO_MOSQUITO = '/Mosquito'
 SENSOR = '/Proximity_sensor'
+BOTAO = '/PushButton'
 
 #----------------------------------------------------
 
@@ -65,6 +67,7 @@ if clientID!=-1:
     for i in range(0,13):
         [erro, aux] = sim.simxGetObjectHandle(clientID, SENSOR+str(i), sim.simx_opmode_blocking)
         sensor.append(aux)
+    [erro, botao] = sim.simxGetObjectHandle(clientID, BOTAO, sim.simx_opmode_blocking)
 
     # ----------------------------------------------------------------------------------------------------
 
@@ -121,7 +124,6 @@ if clientID!=-1:
                 if(detectionState[i]):
                     detectou = True
             if(detectou):
-                print("detectou!")
                 self.send(pyRTOS.Message(DETECTOU_PASSAGEM, self, "liga_ventoinha", detectou))                            
             
             ### End Work code
@@ -168,8 +170,7 @@ if clientID!=-1:
 
     def task_desliga_sistema(self):
         ### Setup code here
-        button = ""
-
+        button = sim.simxGetInt32Signal(clientID, "myButton", sim.simx_opmode_streaming)
         ### End Setup code
 
         # Pass control back to RTOS
@@ -179,9 +180,9 @@ if clientID!=-1:
         while True:
 
             ### Work code here
-            button = input()
-            if(button):
-                sim.simxPauseSimulation(clientID, sim.simx_opmode_oneshot_wait)
+            button = sim.simxGetInt32Signal(clientID, "myButton", sim.simx_opmode_buffer)
+            if(button == (0, 1)):
+                sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
                 sim.simxAddStatusbarMessage(clientID, 'Sistema interrompido!', sim.simx_opmode_blocking)
                 sim.simxSetJointTargetVelocity(clientID, ventoinha, 0.0, sim.simx_opmode_oneshot)
                 print("Sistema desligado!")
@@ -214,9 +215,9 @@ if clientID!=-1:
     # ------------------------------------------------------------------------------
 
     # Adicionando as tasks -----------------------------------------------------------
-    pyRTOS.add_task(pyRTOS.Task(task_le_sensores, priority=3, name="le_sensores", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_le_sensores, priority=1, name="le_sensores", notifications=None, mailbox=False))
     pyRTOS.add_task(pyRTOS.Task(task_liga_ventoinha, priority=2, name="liga_ventoinha", notifications=None, mailbox=True))
-    pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=1, name="desliga_sistema", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=3, name="desliga_sistema", notifications=None, mailbox=False))
 
     # -------------------------------------------------------------------------------
 
