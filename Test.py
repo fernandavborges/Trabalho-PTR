@@ -53,25 +53,36 @@ if clientID!=-1:
     sim.simxStartSimulation(clientID, sim.simx_opmode_oneshot_wait)
     print ('Connected to remote API server')
     sim.simxAddStatusbarMessage(clientID, 'Iniciando...', sim.simx_opmode_oneshot_wait)
-    print('Para desligar o sistema aperte qualquer tecla no terminal!')
+    print('Para desligar o sistema aperte qualquer o botão da armadilha!')
     time.sleep(0.02)
 
     # Handle dos objetos e modelos -----------------------------------------------------------------------
     [erro, ventoinha] = sim.simxGetObjectHandle(clientID, VENTOINHA, sim.simx_opmode_blocking)
     [erro, corpo_ventoinha] = sim.simxGetObjectHandle(clientID, CORPO_VENTOINHA, sim.simx_opmode_blocking)
-    [erro, mosquito] = sim.simxGetObjectHandle(clientID, MOSQUITO, sim.simx_opmode_blocking)
     [erro, pa_ventoinha] = sim.simxGetObjectHandle(clientID, PA_VENTOINHA, sim.simx_opmode_blocking)
-    [erro, corpo_mosquito] = sim.simxGetObjectHandle(clientID, CORPO_MOSQUITO, sim.simx_opmode_blocking)
+    [erro, botao] = sim.simxGetObjectHandle(clientID, BOTAO, sim.simx_opmode_blocking)
     sensor = []
     for i in range(0,13):
         [erro, aux] = sim.simxGetObjectHandle(clientID, SENSOR+str(i), sim.simx_opmode_blocking)
         sensor.append(aux)
-    [erro, botao] = sim.simxGetObjectHandle(clientID, BOTAO, sim.simx_opmode_blocking)
-    
+    mosquito = []
+    for i in range(0,6):
+        [erro, aux] = sim.simxGetObjectHandle(clientID, MOSQUITO+"["+str(i)+"]", sim.simx_opmode_blocking)
+        mosquito.append(aux)
+    corpo_mosquito = []
+    for i in range(0,6):
+        [erro, aux] = sim.simxGetObjectHandle(clientID, CORPO_MOSQUITO+str(i), sim.simx_opmode_blocking)
+        corpo_mosquito.append(aux)
+
+
+    # ----------------------------------------------------------------------------------------------------
+
+
     # Definição das task's -------------------------------------------------------------------------------
-    """
-    def sample_task(self):
+    
+    def mosquitos(self):
         ### Setup code here
+        posicao = [0.0, 0.0, 0.0]
 
         ### End Setup code
 
@@ -80,12 +91,43 @@ if clientID!=-1:
 
         # Thread loop
         while True:
+
             ### Work code here
 
+            # Primeiro teste
+            posicao = [9.0, 2.5, 1.0]
+            sim.simxSetObjectPosition(clientID, mosquito[0], -1, posicao, sim.simx_opmode_oneshot_wait)
+            yield [pyRTOS.timeout(15)]
+            
+            
+            # Segundo teste
+            posicao = [7.0, 3.0, 0.6]
+            sim.simxSetObjectPosition(clientID, mosquito[1], -1, posicao, sim.simx_opmode_oneshot_wait)
+            yield [pyRTOS.timeout(4)]
+            posicao = [8.0, 4.0, 0.6]
+            sim.simxSetObjectPosition(clientID, mosquito[1], -1, posicao, sim.simx_opmode_oneshot_wait)
+            yield [pyRTOS.timeout(15)]
+
+            # Terceiro teste
+            posicao = [9.0, 4.0, 1.0]
+            sim.simxSetObjectPosition(clientID, mosquito[2], -1, posicao, sim.simx_opmode_oneshot_wait)
+            sim.simxSetObjectPosition(clientID, mosquito[3], -1, posicao, sim.simx_opmode_oneshot_wait)
+            yield [pyRTOS.timeout(15)]
+
+            # Quarto teste
+            posicao = [9.0, 2.5, 1.0]
+            sim.simxSetObjectPosition(clientID, mosquito[4], -1, posicao, sim.simx_opmode_oneshot_wait)
+            yield [pyRTOS.timeout(2)]
+            posicao = [7.0, 1.9, 1.0]
+            sim.simxSetObjectPosition(clientID, mosquito[5], -1, posicao, sim.simx_opmode_oneshot_wait)
+            yield [pyRTOS.timeout(4)]
+            posicao = [9.0, 2.5, 1.5]
+            sim.simxSetObjectPosition(clientID, mosquito[5], -1, posicao, sim.simx_opmode_oneshot_wait)
+            
             ### End Work code
 
-            yield [pyRTOS.timeout(0.5)] # timeout -> tempo mínimo entre uma chamada e outra da task (em segundos)
-    """
+            yield [pyRTOS.timeout(60)]
+
     def task_le_sensores(self):
         ### Setup code here
 
@@ -121,7 +163,7 @@ if clientID!=-1:
             
             ### End Work code
 
-            yield [pyRTOS.timeout(0.1)] 
+            yield [pyRTOS.timeout(0.05)] 
 
     def task_liga_ventoinha(self):
         ### Setup code here
@@ -144,7 +186,7 @@ if clientID!=-1:
                 if msg.type == DETECTOU_PASSAGEM:  
 
                     ### Tear down code here
-                    sim.simxSetJointTargetVelocity(clientID, ventoinha, 4.0, sim.simx_opmode_oneshot)
+                    sim.simxSetJointTargetVelocity(clientID, ventoinha, 5.0, sim.simx_opmode_oneshot)
                     tempo_ligamento = time.time() # pega a hora que ele foi ligado
                     ### End of Tear down code
 
@@ -184,29 +226,16 @@ if clientID!=-1:
 
             yield [pyRTOS.timeout(0.5)]
 
-    # ---------------------------------------------------
 
-    # Posição da ventoinha
-    #posicao = [9.0, 2.5, 1.0]
-
-    #sim.simxSetObjectPosition(clientID, mosquito, -1, posicao, sim.simx_opmode_oneshot)
-
-    """
-    # Checar colisão entre mosquito e a ventoinha
-    for i in range (0, 1000):
-        [erro, colisao] = sim.simxCheckDistance(clientID, corpo_mosquito, corpo_ventoinha, sim.simx_opmode_buffer)
-        if(colisao < 0.5):
-            sim.simxRemoveModel(clientID, corpo_mosquito, sim.simx_opmode_oneshot)
-            print('detecteeeei')
-    
-    time.sleep(30)
-    """
     # ------------------------------------------------------------------------------
 
     # Adicionando as tasks -----------------------------------------------------------
     pyRTOS.add_task(pyRTOS.Task(task_le_sensores, priority=1, name="le_sensores", notifications=None, mailbox=False))
     pyRTOS.add_task(pyRTOS.Task(task_liga_ventoinha, priority=2, name="liga_ventoinha", notifications=None, mailbox=True))
     pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=3, name="desliga_sistema", notifications=None, mailbox=False))
+
+
+    pyRTOS.add_task(pyRTOS.Task(mosquitos, priority=4, name="teste_mosquitos", notifications=None, mailbox=False))
 
     # -------------------------------------------------------------------------------
 
