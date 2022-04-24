@@ -43,9 +43,9 @@ CORPO_MOSQUITO = '/Mosquito'
 SENSOR = '/Proximity_sensor'
 BOTAO = '/PushButton'
 
-#----------------------------------------------------
+#---------------------------------------------------------------------------------------------------------
 
-# Iniciando conexão cliente-servidor com o Coppelia --------
+# Iniciando conexão cliente-servidor com o Coppelia ------------------------------------------------------
 print ('Program started')
 sim.simxFinish(-1) # just in case, close all opened connections
 clientID=sim.simxStart('127.0.0.1',19997,True,True,5000,5) # Connect to CoppeliaSim
@@ -55,7 +55,6 @@ if clientID!=-1:
     sim.simxAddStatusbarMessage(clientID, 'Iniciando...', sim.simx_opmode_oneshot_wait)
     print('Para desligar o sistema aperte qualquer tecla no terminal!')
     time.sleep(0.02)
-    # -----------------------------------------------------------------------------
 
     # Handle dos objetos e modelos -----------------------------------------------------------------------
     [erro, ventoinha] = sim.simxGetObjectHandle(clientID, VENTOINHA, sim.simx_opmode_blocking)
@@ -68,15 +67,11 @@ if clientID!=-1:
         [erro, aux] = sim.simxGetObjectHandle(clientID, SENSOR+str(i), sim.simx_opmode_blocking)
         sensor.append(aux)
     [erro, botao] = sim.simxGetObjectHandle(clientID, BOTAO, sim.simx_opmode_blocking)
-
-    # ----------------------------------------------------------------------------------------------------
-
-
+    
     # Definição das task's -------------------------------------------------------------------------------
     """
     def sample_task(self):
         ### Setup code here
-
 
         ### End Setup code
 
@@ -85,10 +80,7 @@ if clientID!=-1:
 
         # Thread loop
         while True:
-
             ### Work code here
-            
-
 
             ### End Work code
 
@@ -123,13 +115,13 @@ if clientID!=-1:
                 [erro, detectionState[i], detectedPoint[i], detectedObjectHandle[i], detectedSurfaceNormalVector[i]] = sim.simxReadProximitySensor(clientID, sensor[i], sim.simx_opmode_buffer)
                 if(detectionState[i]):
                     detectou = True
+                    break
             if(detectou):
                 self.send(pyRTOS.Message(DETECTOU_PASSAGEM, self, "liga_ventoinha", detectou))                            
             
             ### End Work code
 
             yield [pyRTOS.timeout(0.1)] 
-
 
     def task_liga_ventoinha(self):
         ### Setup code here
@@ -166,8 +158,6 @@ if clientID!=-1:
 
             yield [pyRTOS.wait_for_message(self), pyRTOS.timeout(10.0)]
 
-
-
     def task_desliga_sistema(self):
         ### Setup code here
         button = sim.simxGetInt32Signal(clientID, "myButton", sim.simx_opmode_streaming)
@@ -195,7 +185,6 @@ if clientID!=-1:
             yield [pyRTOS.timeout(0.5)]
 
     # ---------------------------------------------------
-
 
     # Posição da ventoinha
     #posicao = [9.0, 2.5, 1.0]
