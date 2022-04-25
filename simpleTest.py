@@ -22,10 +22,10 @@ except:
 
 import time
 
-VENTOINHA = '/Cuboid/Joint_Ventoinha'
-PA_VENTOINHA = '/Cuboid/Pa_Ventoinha'
-MOSQUITO_BASE = '/Quadcopter'
-MOSQUITO_MIRA = '/target'
+VENTOINHA = '/Ventoinha/Joint_Ventoinha'
+PA_VENTOINHA = '/Ventoinha/Pa_Ventoinha'
+MOSQUITO_BASE = '/Mosquito'
+MOSQUITO_MIRA = '/Mosquito/target'
 
 print ('Program started')
 sim.simxFinish(-1) # just in case, close all opened connections
@@ -37,17 +37,6 @@ if clientID!=-1:
     time.sleep(0.02)
 
     # ------------------------------------------------
-
-"""
-    # tenta carregar novo modelo (ainda nao funciona)
-    [error, modelobase] = sim.simxLoadModel(clientID, "./Quadcopter.ttm", 0, sim.simx_opmode_blocking)
-    print(error)
-    input()
-
-    [error, modelobase] = sim.simxCopyPasteObjects(clientID, modelobase, sim.simx_opmode_blocking)
-    print(error)
-    input()
-"""
 
     [erro, ventoinha] = sim.simxGetObjectHandle(clientID, VENTOINHA, sim.simx_opmode_blocking)
     if(erro != 0):
@@ -100,7 +89,7 @@ if clientID!=-1:
             sim.simxRemoveObject(clientID, mosquitom, sim.simx_opmode_oneshot_wait)
             print("colidiu!")
             break
-    
+
     input()
 
     # Now close the connection to CoppeliaSim ------------------

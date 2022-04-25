@@ -132,6 +132,7 @@ if clientID!=-1:
         detectedPoint = []
         detectedObjectHandle = []
         detectedSurfaceNormalVector = []
+        ligou = false
 
         for i in range(0,13):
             [erro, aux1, aux2, aux3, aux4] = sim.simxReadProximitySensor(clientID, sensor[i], sim.simx_opmode_streaming)
@@ -156,7 +157,8 @@ if clientID!=-1:
                     detectou = True
                     break
             if(detectou):
-                self.send(pyRTOS.Message(DETECTOU_PASSAGEM, self, "liga_ventoinha", detectou))
+                ligou = true
+                self.send(pyRTOS.Message(DETECTOU_PASSAGEM, self, "liga_ventoinha", ligou))
             
             ### End Work code
 
@@ -166,6 +168,7 @@ if clientID!=-1:
         ### Setup code here
         tempo_ligamento = 0.0
         tempo_atual = 0.0
+        ligou = False
 
         ### End Setup code
 
@@ -185,7 +188,8 @@ if clientID!=-1:
                     ### Tear down code here
                     sim.simxSetJointTargetVelocity(clientID, ventoinha, 6.0, sim.simx_opmode_oneshot)
                     tempo_ligamento = time.time() # pega a hora que ele foi ligado
-                    self.send(pyRTOS.Message(LIGOU_VENTOINHA, self, "vento_mata_mosquito", '0'))
+                    ligou = True
+                    self.send(pyRTOS.Message(LIGOU_VENTOINHA, self, "vento_mata_mosquito", ligou))
                     ### End of Tear down code
 
                 ### End Message Handler
@@ -194,7 +198,8 @@ if clientID!=-1:
             tempo_atual = time.time()
             if((tempo_atual - tempo_ligamento) > 10): # 10 segundos se passaram desde o desligamento
                 sim.simxSetJointTargetVelocity(clientID, ventoinha, 0.0, sim.simx_opmode_oneshot)
-                self.send(pyRTOS.Message(DESLIGOU_VENTOINHA, self, "vento_mata_mosquito", '0'))
+                ligou = False
+                self.send(pyRTOS.Message(DESLIGOU_VENTOINHA, self, "vento_mata_mosquito", ligou))
             ### End Work code
 
             yield [pyRTOS.wait_for_message(self), pyRTOS.timeout(10.0)]
@@ -255,7 +260,7 @@ if clientID!=-1:
                     ### Tear down code here
                     ventoinha_ligada = False
                 ### End Message Handler
-
+            
             ### Work code here
             
             if ventoinha_ligada == True:
@@ -268,10 +273,10 @@ if clientID!=-1:
                         sim.simxRemoveModel(clientID, corpo_mosquito[i], sim.simx_opmode_oneshot_wait)
                         sim.simxRemoveObject(clientID, mosquito[i], sim.simx_opmode_oneshot_wait)
                         print("colidiu!")
-            
+
             ### End Work code
 
-            yield [pyRTOS.timeout(0.05)] 
+            yield [pyRTOS.timeout(0.8)] 
 
     # ------------------------------------------------------------------------------
 
@@ -279,7 +284,7 @@ if clientID!=-1:
     pyRTOS.add_task(pyRTOS.Task(task_le_sensores, priority=1, name="le_sensores", notifications=None, mailbox=False))
     pyRTOS.add_task(pyRTOS.Task(task_liga_ventoinha, priority=2, name="liga_ventoinha", notifications=None, mailbox=True))
     pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=3, name="desliga_sistema", notifications=None, mailbox=False))
-    pyRTOS.add_task(pyRTOS.Task(task_vento_mata_mosquito, priority=5, name="vento_mata_mosquito", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_vento_mata_mosquito, priority=5, name="vento_mata_mosquito", notifications=None, mailbox=True))
 
     pyRTOS.add_task(pyRTOS.Task(mosquitos, priority=4, name="teste_mosquitos", notifications=None, mailbox=False))
 
@@ -287,7 +292,7 @@ if clientID!=-1:
 
     # Play no RTOS
     pyRTOS.start()
-    
+
     # Now close the connection to CoppeliaSim --------------------------------------
     sim.simxPauseSimulation(clientID, sim.simx_opmode_oneshot_wait)
     sim.simxAddStatusbarMessage(clientID, 'Finalizando...', sim.simx_opmode_blocking)
