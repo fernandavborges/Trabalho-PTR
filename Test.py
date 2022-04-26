@@ -42,6 +42,7 @@ MOSQUITO = '/target'
 CORPO_MOSQUITO = '/Mosquito'
 SENSOR = '/Proximity_sensor'
 BOTAO = '/PushButton'
+SMOKE = '/smoke'
 
 #---------------------------------------------------------------------------------------------------------
 
@@ -70,6 +71,12 @@ if clientID!=-1:
         sim.simxFinish(-1)
         exit()
     [erro, pa_ventoinha] = sim.simxGetObjectHandle(clientID, PA_VENTOINHA, sim.simx_opmode_blocking)
+    if(erro != 0):
+        print("Erro ao solicitar controle de objeto do Coppelia!")
+        sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
+        sim.simxFinish(-1)
+        exit()
+    [erro, smoke] = sim.simxGetObjectHandle(clientID, SMOKE, sim.simx_opmode_blocking)
     if(erro != 0):
         print("Erro ao solicitar controle de objeto do Coppelia!")
         sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
@@ -109,12 +116,10 @@ if clientID!=-1:
             exit()
         corpo_mosquito.append(aux)
 
-
     # ----------------------------------------------------------------------------------------------------
 
-
     # Definição das task's -------------------------------------------------------------------------------
-    
+
     def mosquitos(self):
         ### Setup code here
         posicao = [0.0, 0.0, 0.0]
@@ -167,10 +172,8 @@ if clientID!=-1:
             ### End Work code
             return
 
-
-    def task_le_sensores(self):
+    def task_fototransistores(self):
         ### Setup code here
-
         detectionState = []
         detectedPoint = []
         detectedObjectHandle = []
@@ -233,7 +236,17 @@ if clientID!=-1:
                     ### Tear down code here
                     sim.simxSetJointTargetVelocity(clientID, ventoinha, 5.0, sim.simx_opmode_oneshot)
                     tempo_ligamento = time.time() # pega a hora que ele foi ligado
-                    self.send(pyRTOS.Message(LIGOU_VENTOINHA, self, "vento_mata_mosquito"))
+                    self.send(pyRTOS.Message(LIGOU_VENTOINHA, self, "grade_eletrica"))
+                    [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
+                    print("posicao ventoinha: " + str(posicao))
+                    
+                    for i in range(0,6):
+                        [error, checa_colisao] = sim.simxCheckDistance(clientID, pa_ventoinha, corpo_mosquito[i], sim.simx_opmode_oneshot_wait)
+                        
+                        if(checa_colisao < 2):
+                            sim.simxSetObjectPosition(clientID, mosquito[i], -1, posicao, sim.simx_opmode_oneshot_wait)
+                            
+                    yield [pyRTOS.timeout(1)]
                     ### End of Tear down code
 
                 ### End Message Handler
@@ -242,10 +255,75 @@ if clientID!=-1:
             tempo_atual = time.time()
             if((tempo_atual - tempo_ligamento) > 10): # 10 segundos se passaram desde o desligamento
                 sim.simxSetJointTargetVelocity(clientID, ventoinha, 0.0, sim.simx_opmode_oneshot)
-                self.send(pyRTOS.Message(DESLIGOU_VENTOINHA, self, "vento_mata_mosquito"))
+                self.send(pyRTOS.Message(DESLIGOU_VENTOINHA, self, "grade_eletrica"))
             ### End Work code
 
             yield [pyRTOS.wait_for_message(self), pyRTOS.timeout(10.0)]
+
+    def task_LED(self):
+        
+        ### Setup code here
+        ligado = False
+        ### End Setup code
+
+        # Pass control back to RTOS
+        yield
+
+        # Thread loop
+        while True:
+
+            # Check messages
+            
+            msgs = self.recv()
+            for msg in msgs:
+
+                ### Handle messages 
+                if msg.type == LIGA_LED:
+                    estado = True
+                if msg.type ==  DESLIGA_LED:    
+                    estado = False
+                    
+                ### End Message Handler
+
+            ### Work code here
+            
+            ### End Work code
+
+            yield [pyRTOS.wait_for_message(self), pyRTOS.timeout(60.0)]
+
+    def task_liga_feromonio(self):
+        
+        ### Setup code here
+        tempo_ligamento = 0.0
+        tempo_atual = 0.0
+
+        ### End Setup code
+
+        # Pass control back to RTOS
+        yield
+
+        # Thread loop
+        while True:
+        
+                    ### Tear down code here
+
+                    ### End of Tear down code
+
+                ### End Message Handler
+
+            ### Work code here
+            tempo_atual = time.time()
+            if((tempo_atual - tempo_ligamento) > 60): # 1 minutos se passaram desde o desligamento
+                tempo_atual = 0.0
+                for i in range(0,6):
+                    #posicao = [6.0, 2.6, 1.0]
+                    [erro, posicao] = sim.simxGetObjectPosition(clientID, smoke, -1, sim.simx_opmode_blocking)
+                    print("posicao ventoinha: " + str(posicao))
+                    sim.simxSetObjectPosition(clientID, mosquito[i], -1, posicao, sim.simx_opmode_oneshot_wait)
+                
+            ### End Work code
+
+            yield [pyRTOS.timeout(10.0)]
 
     def task_desliga_sistema(self):
         ### Setup code here
@@ -289,7 +367,7 @@ if clientID!=-1:
 
             yield [pyRTOS.timeout(0.5)]
 
-    def vento_mata_mosquito(self):
+    def task_grade_eletrica(self):
         ### Setup code here
         ventoinha_ligada = False
 
@@ -309,17 +387,16 @@ if clientID!=-1:
                 ### Handle messages 
                 if msg.type == LIGOU_VENTOINHA:  
                     ### Tear down code here
-                    ventoinha_ligada = True
+                    eletrica_ligada = True
 
                 if msg.type == DESLIGOU_VENTOINHA:  
 
                     ### Tear down code here
-                    ventoinha_ligada = False
+                    eletrica_ligada = False
                 ### End Message Handler
             yield
             ### Work code here
-            if ventoinha_ligada == True:
-                checa_colisao = 100
+            if eletrica_ligada == True:
                 for i in range(0,6):
                     #print(str(i) + "colisao: " + str(checa_colisao))
                     [error, checa_colisao] = sim.simxCheckDistance(clientID, pa_ventoinha, corpo_mosquito[i], sim.simx_opmode_oneshot_wait)
@@ -339,13 +416,13 @@ if clientID!=-1:
     # ------------------------------------------------------------------------------
 
     # Adicionando as tasks -----------------------------------------------------------
-    pyRTOS.add_task(pyRTOS.Task(task_le_sensores, priority=1, name="le_sensores", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_fototransistores, priority=1, name="fototransistores", notifications=None, mailbox=False))
     pyRTOS.add_task(pyRTOS.Task(task_liga_ventoinha, priority=2, name="liga_ventoinha", notifications=None, mailbox=True))
-    pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=3, name="desliga_sistema", notifications=None, mailbox=True))
-
-
-    pyRTOS.add_task(pyRTOS.Task(vento_mata_mosquito, priority=5, name="vento_mata_mosquito", notifications=None, mailbox=True))
-    pyRTOS.add_task(pyRTOS.Task(mosquitos, priority=4, name="teste_mosquitos", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_LED, priority=3, name="LED", notifications=None, mailbox=True))
+    pyRTOS.add_task(pyRTOS.Task(task_liga_feromonio, priority=3, name="liga_feromonio", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=1, name="desliga_sistema", notifications=None, mailbox=True))
+    pyRTOS.add_task(pyRTOS.Task(task_grade_eletrica, priority=2, name="grade_eletrica", notifications=None, mailbox=True))
+   # pyRTOS.add_task(pyRTOS.Task(mosquitos, priority=4, name="teste_mosquitos", notifications=None, mailbox=False))
 
     # -------------------------------------------------------------------------------
 
