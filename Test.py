@@ -46,6 +46,10 @@ CORPO_MOSQUITO = '/Mosquito'
 SENSOR = '/Proximity_sensor'
 BOTAO = '/PushButton'
 SMOKE = '/smoke'
+JOINT_LED = '/LED/Joint_LED'
+LED = '/LED'
+JOINT_FEROMONIO = '/Feromonio/Joint_Feromonio'
+FEROMONIO = '/Feromonio'
 
 #---------------------------------------------------------------------------------------------------------
 
@@ -79,13 +83,31 @@ if clientID!=-1:
         sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
         sim.simxFinish(-1)
         exit()
-    [erro, smoke] = sim.simxGetObjectHandle(clientID, SMOKE, sim.simx_opmode_blocking)
+    [erro, botao] = sim.simxGetObjectHandle(clientID, BOTAO, sim.simx_opmode_blocking)
     if(erro != 0):
         print("Erro ao solicitar controle de objeto do Coppelia!")
         sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
         sim.simxFinish(-1)
         exit()
-    [erro, botao] = sim.simxGetObjectHandle(clientID, BOTAO, sim.simx_opmode_blocking)
+    [erro, feromonio] = sim.simxGetObjectHandle(clientID, JOINT_FEROMONIO, sim.simx_opmode_blocking)
+    if(erro != 0):
+        print("Erro ao solicitar controle de objeto do Coppelia!")
+        sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
+        sim.simxFinish(-1)
+        exit()
+    [erro, corpo_feromonio] = sim.simxGetObjectHandle(clientID, FEROMONIO, sim.simx_opmode_blocking)
+    if(erro != 0):
+        print("Erro ao solicitar controle de objeto do Coppelia!")
+        sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
+        sim.simxFinish(-1)
+        exit()
+    [erro, led] = sim.simxGetObjectHandle(clientID, JOINT_LED, sim.simx_opmode_blocking)
+    if(erro != 0):
+        print("Erro ao solicitar controle de objeto do Coppelia!")
+        sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
+        sim.simxFinish(-1)
+        exit()
+    [erro, corpo_led] = sim.simxGetObjectHandle(clientID, LED, sim.simx_opmode_blocking)
     if(erro != 0):
         print("Erro ao solicitar controle de objeto do Coppelia!")
         sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
@@ -95,7 +117,7 @@ if clientID!=-1:
     for i in range(0,13):
         [erro, aux] = sim.simxGetObjectHandle(clientID, SENSOR+str(i), sim.simx_opmode_blocking)
         if(erro != 0):
-            print("Erro ao solicitar controle de objeto do Coppelia!")
+            print("Erro ao solicitar controle de objeto do Coppelia! ")
             sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
             sim.simxFinish(-1)
             exit()
@@ -121,6 +143,7 @@ if clientID!=-1:
 
     # ----------------------------------------------------------------------------------------------------
 
+    tempo_execucao = []
     # Definição das task's -------------------------------------------------------------------------------
 
     def mosquitos(self):
@@ -148,7 +171,7 @@ if clientID!=-1:
                     ### Work code here
                     # Primeiro teste
             if (liberou == True):  
-                [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
+                [erro, posicao] = sim.simxGetObjectPosition(clientID, smoke, -1, sim.simx_opmode_blocking)
                 #print("posicao ventoinha: " + str(posicao))
                 sim.simxSetObjectPosition(clientID, mosquito[0], -1, posicao, sim.simx_opmode_oneshot_wait)
                 yield [pyRTOS.timeout(15)]
@@ -164,7 +187,7 @@ if clientID!=-1:
                 yield [pyRTOS.timeout(15)]
 
                 # Terceiro teste
-                [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
+                [erro, posicao] = sim.simxGetObjectPosition(clientID, smoke, -1, sim.simx_opmode_blocking)
                 sim.simxSetObjectPosition(clientID, mosquito[2], -1, posicao, sim.simx_opmode_oneshot_wait)
                 sim.simxSetObjectPosition(clientID, mosquito[3], -1, posicao, sim.simx_opmode_oneshot_wait)
                 yield [pyRTOS.timeout(15)]
@@ -221,7 +244,7 @@ if clientID!=-1:
                 self.send(pyRTOS.Message(DETECTOU_PASSAGEM, self, "liga_ventoinha", detectou))                             
             ### End Work code
 
-            yield [pyRTOS.timeout(0.1)] 
+            yield [pyRTOS.timeout(0.05)] 
 
     def task_liga_ventoinha(self):
         
@@ -248,17 +271,8 @@ if clientID!=-1:
                     ### Tear down code here
                     sim.simxSetJointTargetVelocity(clientID, ventoinha, 5.0, sim.simx_opmode_oneshot)
                     tempo_ligamento = time.time() # pega a hora que ele foi ligado
-                    self.send(pyRTOS.Message(LIGOU_VENTOINHA, self, "grade_eletrica"))
-                    [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
-                    #print("posicao ventoinha: " + str(posicao))
+                    self.send(pyRTOS.Message(LIGOU_VENTOINHA, self, "grade_eletrica"))                           
                     
-                    for i in range(0,6):
-                        [error, checa_colisao] = sim.simxCheckDistance(clientID, pa_ventoinha, corpo_mosquito[i], sim.simx_opmode_oneshot_wait)
-                        
-                        if(checa_colisao < 2):
-                            sim.simxSetObjectPosition(clientID, mosquito[i], -1, posicao, sim.simx_opmode_oneshot_wait)
-                            
-                    yield [pyRTOS.timeout(1)]
                     ### End of Tear down code
 
                 ### End Message Handler
@@ -269,6 +283,7 @@ if clientID!=-1:
                 sim.simxSetJointTargetVelocity(clientID, ventoinha, 0.0, sim.simx_opmode_oneshot)
                 self.send(pyRTOS.Message(DESLIGOU_VENTOINHA, self, "grade_eletrica"))
             ### End Work code
+
 
             yield [pyRTOS.wait_for_message(self), pyRTOS.timeout(10.0)]
 
@@ -298,6 +313,10 @@ if clientID!=-1:
                 ### End Message Handler
 
             ### Work code here
+            if(estado == True):
+                sim.simxSetJointTargetPosition(clientID, led, (90*3.1415/180), sim.simx_opmode_oneshot)
+            else:
+                sim.simxSetJointTargetPosition(clientID, feromonio, 0, sim.simx_opmode_oneshot)
             
             ### End Work code
 
@@ -316,19 +335,17 @@ if clientID!=-1:
 
         # Thread loop
         while True:
-
+            tempo_inicial = time.time_ns()
             ### Work code here
             tempo_atual = time.time()
-            if((tempo_atual - tempo_ligamento) > 30): # 1 minuto se passou desde o desligamento
-                self.send(pyRTOS.Message(LIBEROU_FEROMONIO, self, "mosquitos"))
-                for i in range(0,6):
-                    #posicao = [6.0, 2.6, 1.0]
-                    [erro, posicao] = sim.simxGetObjectPosition(clientID, smoke, -1, sim.simx_opmode_blocking)
-                    #print("posicao ventoinha: " + str(posicao))
-                    sim.simxSetObjectPosition(clientID, mosquito[i], -1, posicao, sim.simx_opmode_oneshot_wait)
+            if((tempo_atual - tempo_ligamento) > 30): # 30 segundos se passou desde o desligament
+                sim.simxSetJointTargetPosition(clientID, feromonio, (90*3.1415/180), sim.simx_opmode_oneshot)
                 tempo_ligamento = time.time()
                 
             ### End Work code
+
+            tempo_final = time.time_ns()
+            tempo_execucao.append(tempo_final-tempo_inicial)
 
             yield [pyRTOS.timeout(10.0)]
 
@@ -368,6 +385,7 @@ if clientID!=-1:
                 print("Sistema desligado!")
                 print("Terminando a comunicação com o Coppelia!")
                 sim.simxFinish(-1)
+                print(tempo_execucao)
                 exit()
 
             ### End Work code
@@ -407,9 +425,7 @@ if clientID!=-1:
                 for i in range(0,6):
                     #print(str(i) + "colisao: " + str(checa_colisao))
                     [error, checa_colisao] = sim.simxCheckDistance(clientID, pa_ventoinha, corpo_mosquito[i], sim.simx_opmode_oneshot_wait)
-                    yield
                     #print(str(i) + "colisao: " + str(checa_colisao))
-
                     if(checa_colisao < 0.5):
                         # matando o mosquito:
                         sim.simxRemoveModel(clientID, corpo_mosquito[i], sim.simx_opmode_oneshot_wait)
