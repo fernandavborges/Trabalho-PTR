@@ -291,6 +291,7 @@ if clientID!=-1:
         
         ### Setup code here
         ligado = False
+        estado = True
         ### End Setup code
 
         # Pass control back to RTOS
@@ -314,7 +315,7 @@ if clientID!=-1:
 
             ### Work code here
             if(estado == True):
-                sim.simxSetJointTargetPosition(clientID, led, (90*3.1415/180), sim.simx_opmode_oneshot)
+                sim.simxSetJointTargetPosition(clientID, led, 90, sim.simx_opmode_oneshot)
             else:
                 sim.simxSetJointTargetPosition(clientID, feromonio, 0, sim.simx_opmode_oneshot)
             
@@ -339,7 +340,7 @@ if clientID!=-1:
             ### Work code here
             tempo_atual = time.time()
             if((tempo_atual - tempo_ligamento) > 30): # 30 segundos se passou desde o desligament
-                sim.simxSetJointTargetPosition(clientID, feromonio, (90*3.1415/180), sim.simx_opmode_oneshot)
+                sim.simxSetJointPosition(clientID, feromonio, 90, sim.simx_opmode_oneshot)
                 tempo_ligamento = time.time()
                 
             ### End Work code
