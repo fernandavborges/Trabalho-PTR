@@ -30,6 +30,9 @@ import pyRTOS
 DETECTOU_PASSAGEM = 128
 LIGOU_VENTOINHA = 129
 DESLIGOU_VENTOINHA = 130
+LIGA_LED = 131
+DESLIGA_LED = 132
+LIBEROU_FEROMONIO = 133
 
 # -----------------------------------------------------------
 
@@ -123,6 +126,7 @@ if clientID!=-1:
     def mosquitos(self):
         ### Setup code here
         posicao = [0.0, 0.0, 0.0]
+        liberou = False
 
         ### End Setup code
 
@@ -132,45 +136,53 @@ if clientID!=-1:
         # Thread loop
         while True:
 
-            ### Work code here
+            # Check messages
+            yield [pyRTOS.wait_for_message(self)]
 
-            # Primeiro teste
-            
-            [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
-            #print("posicao ventoinha: " + str(posicao))
-            sim.simxSetObjectPosition(clientID, mosquito[0], -1, posicao, sim.simx_opmode_oneshot_wait)
-            yield [pyRTOS.timeout(15)]
-            
-            
-            # Segundo teste
-            posicao = [7.0, 2.0, 1.0]
-            sim.simxSetObjectPosition(clientID, mosquito[1], -1, posicao, sim.simx_opmode_oneshot_wait)
-            yield [pyRTOS.timeout(5)]
-            
-            posicao = [8.0, 4.0, 1.0]
-            sim.simxSetObjectPosition(clientID, mosquito[1], -1, posicao, sim.simx_opmode_oneshot_wait)
-            yield [pyRTOS.timeout(15)]
+            msgs = self.recv()
+            for msg in msgs:
 
-            # Terceiro teste
-            [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
-            sim.simxSetObjectPosition(clientID, mosquito[2], -1, posicao, sim.simx_opmode_oneshot_wait)
-            sim.simxSetObjectPosition(clientID, mosquito[3], -1, posicao, sim.simx_opmode_oneshot_wait)
-            yield [pyRTOS.timeout(15)]
+                ### Handle messages 
+                if msg.type == LIBEROU_FEROMONIO:
+                    liberou = True
+                    ### Work code here
+                    # Primeiro teste
+            if (liberou == True):  
+                [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
+                #print("posicao ventoinha: " + str(posicao))
+                sim.simxSetObjectPosition(clientID, mosquito[0], -1, posicao, sim.simx_opmode_oneshot_wait)
+                yield [pyRTOS.timeout(15)]
+                
+                
+                # Segundo teste
+                posicao = [7.0, 2.0, 1.0]
+                sim.simxSetObjectPosition(clientID, mosquito[1], -1, posicao, sim.simx_opmode_oneshot_wait)
+                yield [pyRTOS.timeout(5)]
+                
+                posicao = [8.0, 4.0, 1.0]
+                sim.simxSetObjectPosition(clientID, mosquito[1], -1, posicao, sim.simx_opmode_oneshot_wait)
+                yield [pyRTOS.timeout(15)]
 
-            # Quarto teste
-            posicao = [9.0, 2.5, 1.0]
-            sim.simxSetObjectPosition(clientID, mosquito[4], -1, posicao, sim.simx_opmode_oneshot_wait)
-            yield [pyRTOS.timeout(3)]
-            
-            posicao = [7.0, 1.9, 1.0]
-            sim.simxSetObjectPosition(clientID, mosquito[5], -1, posicao, sim.simx_opmode_oneshot_wait)
-            yield [pyRTOS.timeout(5)]
-            
-            posicao = [9.0, 2.5, 1.5]
-            sim.simxSetObjectPosition(clientID, mosquito[5], -1, posicao, sim.simx_opmode_oneshot_wait)
-            
-            ### End Work code
-            return
+                # Terceiro teste
+                [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
+                sim.simxSetObjectPosition(clientID, mosquito[2], -1, posicao, sim.simx_opmode_oneshot_wait)
+                sim.simxSetObjectPosition(clientID, mosquito[3], -1, posicao, sim.simx_opmode_oneshot_wait)
+                yield [pyRTOS.timeout(15)]
+
+                # Quarto teste
+                posicao = [9.0, 2.5, 1.0]
+                sim.simxSetObjectPosition(clientID, mosquito[4], -1, posicao, sim.simx_opmode_oneshot_wait)
+                yield [pyRTOS.timeout(3)]
+                
+                posicao = [7.0, 1.9, 1.0]
+                sim.simxSetObjectPosition(clientID, mosquito[5], -1, posicao, sim.simx_opmode_oneshot_wait)
+                yield [pyRTOS.timeout(5)]
+                
+                posicao = [9.0, 2.5, 1.5]
+                sim.simxSetObjectPosition(clientID, mosquito[5], -1, posicao, sim.simx_opmode_oneshot_wait)
+                
+                ### End Work code
+                return
 
     def task_fototransistores(self):
         ### Setup code here
@@ -238,7 +250,7 @@ if clientID!=-1:
                     tempo_ligamento = time.time() # pega a hora que ele foi ligado
                     self.send(pyRTOS.Message(LIGOU_VENTOINHA, self, "grade_eletrica"))
                     [erro, posicao] = sim.simxGetObjectPosition(clientID, pa_ventoinha, -1, sim.simx_opmode_blocking)
-                    print("posicao ventoinha: " + str(posicao))
+                    #print("posicao ventoinha: " + str(posicao))
                     
                     for i in range(0,6):
                         [error, checa_colisao] = sim.simxCheckDistance(clientID, pa_ventoinha, corpo_mosquito[i], sim.simx_opmode_oneshot_wait)
@@ -294,7 +306,7 @@ if clientID!=-1:
     def task_liga_feromonio(self):
         
         ### Setup code here
-        tempo_ligamento = 0.0
+        tempo_ligamento = time.time()
         tempo_atual = 0.0
 
         ### End Setup code
@@ -304,22 +316,17 @@ if clientID!=-1:
 
         # Thread loop
         while True:
-        
-                    ### Tear down code here
-
-                    ### End of Tear down code
-
-                ### End Message Handler
 
             ### Work code here
             tempo_atual = time.time()
-            if((tempo_atual - tempo_ligamento) > 60): # 1 minutos se passaram desde o desligamento
-                tempo_atual = 0.0
+            if((tempo_atual - tempo_ligamento) > 30): # 1 minuto se passou desde o desligamento
+                self.send(pyRTOS.Message(LIBEROU_FEROMONIO, self, "mosquitos"))
                 for i in range(0,6):
                     #posicao = [6.0, 2.6, 1.0]
                     [erro, posicao] = sim.simxGetObjectPosition(clientID, smoke, -1, sim.simx_opmode_blocking)
-                    print("posicao ventoinha: " + str(posicao))
+                    #print("posicao ventoinha: " + str(posicao))
                     sim.simxSetObjectPosition(clientID, mosquito[i], -1, posicao, sim.simx_opmode_oneshot_wait)
+                tempo_ligamento = time.time()
                 
             ### End Work code
 
@@ -418,11 +425,11 @@ if clientID!=-1:
     # Adicionando as tasks -----------------------------------------------------------
     pyRTOS.add_task(pyRTOS.Task(task_fototransistores, priority=1, name="fototransistores", notifications=None, mailbox=False))
     pyRTOS.add_task(pyRTOS.Task(task_liga_ventoinha, priority=2, name="liga_ventoinha", notifications=None, mailbox=True))
-    pyRTOS.add_task(pyRTOS.Task(task_LED, priority=3, name="LED", notifications=None, mailbox=True))
-    pyRTOS.add_task(pyRTOS.Task(task_liga_feromonio, priority=3, name="liga_feromonio", notifications=None, mailbox=False))
-    pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=1, name="desliga_sistema", notifications=None, mailbox=True))
-    pyRTOS.add_task(pyRTOS.Task(task_grade_eletrica, priority=2, name="grade_eletrica", notifications=None, mailbox=True))
-   # pyRTOS.add_task(pyRTOS.Task(mosquitos, priority=4, name="teste_mosquitos", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_LED, priority=6, name="LED", notifications=None, mailbox=True))
+    pyRTOS.add_task(pyRTOS.Task(task_liga_feromonio, priority=5, name="liga_feromonio", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=3, name="desliga_sistema", notifications=None, mailbox=True))
+    pyRTOS.add_task(pyRTOS.Task(task_grade_eletrica, priority=4, name="grade_eletrica", notifications=None, mailbox=True))
+    pyRTOS.add_task(pyRTOS.Task(mosquitos, priority=7, name="teste_mosquitos", notifications=None, mailbox=True))
 
     # -------------------------------------------------------------------------------
 

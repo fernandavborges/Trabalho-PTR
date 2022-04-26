@@ -77,7 +77,7 @@ if clientID!=-1:
     # ----------------------------------------------------------------------------------------------------
     tempo_execucao = []
 
-    # Definição das task's -------------------------------------------------------------------------------
+    # Definição das task's ------------------------------------------------------------------------------
 
     def task_le_sensores(self):
         ### Setup code here
@@ -86,8 +86,6 @@ if clientID!=-1:
         detectedPoint = []
         detectedObjectHandle = []
         detectedSurfaceNormalVector = []
-
-        
 
         for i in range(0,13):
             [erro, aux1, aux2, aux3, aux4] = sim.simxReadProximitySensor(clientID, sensor[i], sim.simx_opmode_streaming)
@@ -103,24 +101,26 @@ if clientID!=-1:
 
         # Thread loop
         while True:
-            
-            
+
             ### Work code here
             detectou = False
             for i in range(0,13):
                 [erro, detectionState[i], detectedPoint[i], detectedObjectHandle[i], detectedSurfaceNormalVector[i]] = sim.simxReadProximitySensor(clientID, sensor[i], sim.simx_opmode_buffer)
+                if(erro != 0 and erro != 1):
+                    print("Falha na leitura de um dos sensores!")
+                    print("Sistema será desligado!")
+                    self.send(pyRTOS.Message(pyRTOS.QUIT, self, "desliga_sistema")) 
                 if(detectionState[i]):
                     detectou = True
                     break
             if(detectou):
-                self.send(pyRTOS.Message(DETECTOU_PASSAGEM, self, "liga_ventoinha", detectou))                            
-            
+                self.send(pyRTOS.Message(DETECTOU_PASSAGEM, self, "liga_ventoinha", detectou))                             
             ### End Work code
-            
 
-            yield [pyRTOS.timeout(0.05)] 
+            yield [pyRTOS.timeout(0.1)] 
 
     def task_liga_ventoinha(self):
+        
         ### Setup code here
         tempo_ligamento = 0.0
         tempo_atual = 0.0
@@ -132,16 +132,20 @@ if clientID!=-1:
 
         # Thread loop
         while True:
+
             # Check messages
+            
+            
             msgs = self.recv()
             for msg in msgs:
 
                 ### Handle messages 
-                if msg.type == DETECTOU_PASSAGEM:  
+                if msg.type == DETECTOU_PASSAGEM:
 
                     ### Tear down code here
                     sim.simxSetJointTargetVelocity(clientID, ventoinha, 5.0, sim.simx_opmode_oneshot)
                     tempo_ligamento = time.time() # pega a hora que ele foi ligado
+                    self.send(pyRTOS.Message(pyRTOS.QUIT, self, "liga_ventoinha"))
                     ### End of Tear down code
 
                 ### End Message Handler
@@ -150,8 +154,9 @@ if clientID!=-1:
             tempo_atual = time.time()
             if((tempo_atual - tempo_ligamento) > 10): # 10 segundos se passaram desde o desligamento
                 sim.simxSetJointTargetVelocity(clientID, ventoinha, 0.0, sim.simx_opmode_oneshot)
+                self.send(pyRTOS.Message(pyRTOS.QUIT, self, "liga_ventoinha"))
             ### End Work code
-
+            
 
             yield [pyRTOS.wait_for_message(self), pyRTOS.timeout(10.0)]
 
@@ -165,8 +170,23 @@ if clientID!=-1:
 
         # Thread loop
         while True:
+            tempo_inicio = time.time_ns()
+            # Check messages
+            msgs = self.recv()
+            for msg in msgs:
 
-            tempo_inicial = time.time_ns()
+                ### Handle messages 
+                if msg.type == pyRTOS.QUIT:
+                    ### Tear down code here
+                    sim.simxStopSimulation(clientID, sim.simx_opmode_oneshot_wait)
+                    sim.simxAddStatusbarMessage(clientID, 'Sistema interrompido!', sim.simx_opmode_blocking)
+                    sim.simxSetJointTargetVelocity(clientID, ventoinha, 0.0, sim.simx_opmode_oneshot)
+                    print("Sistema desligado!")
+                    print("Terminando a comunicação com o Coppelia!")
+                    sim.simxFinish(-1)
+                    exit()
+                    ### End of Tear down code
+
             ### Work code here
             button = sim.simxGetInt32Signal(clientID, "myButton", sim.simx_opmode_buffer)
             if(button == (0, 1)):
@@ -175,15 +195,14 @@ if clientID!=-1:
                 sim.simxSetJointTargetVelocity(clientID, ventoinha, 0.0, sim.simx_opmode_oneshot)
                 print("Sistema desligado!")
                 print("Terminando a comunicação com o Coppelia!")
-                print(tempo_execucao)
                 sim.simxFinish(-1)
+                print(tempo_execucao)
                 exit()
 
             ### End Work code
+            tempo_fim = time.time_ns()
+            tempo_execucao.append(tempo_fim-tempo_inicio)
 
-            tempo_final = time.time_ns()
-
-            tempo_execucao.append(tempo_final-tempo_inicial)
             yield [pyRTOS.timeout(0.5)]
 
 
@@ -192,7 +211,7 @@ if clientID!=-1:
     # Adicionando as tasks -----------------------------------------------------------
     pyRTOS.add_task(pyRTOS.Task(task_le_sensores, priority=1, name="le_sensores", notifications=None, mailbox=False))
     pyRTOS.add_task(pyRTOS.Task(task_liga_ventoinha, priority=2, name="liga_ventoinha", notifications=None, mailbox=True))
-    pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=3, name="desliga_sistema", notifications=None, mailbox=False))
+    pyRTOS.add_task(pyRTOS.Task(task_desliga_sistema, priority=3, name="desliga_sistema", notifications=None, mailbox=True))
 
     # -------------------------------------------------------------------------------
 
