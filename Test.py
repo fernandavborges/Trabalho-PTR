@@ -114,7 +114,7 @@ if clientID!=-1:
 
     # ----------------------------------------------------------------------------------------------------
 
-    #tempo_execucao = []
+    tempo_execucao = []
     # Definição das task's -------------------------------------------------------------------------------
 
     def mosquitos(self):
@@ -185,7 +185,7 @@ if clientID!=-1:
 
         # Thread loop
         while True:
-
+            tempo_inicial = time.time_ns()
             ### Work code here
             detectou = False
             for i in range(0,13):
@@ -200,6 +200,9 @@ if clientID!=-1:
             if(detectou):
                 self.send(pyRTOS.Message(DETECTOU_PASSAGEM, self, "liga_ventoinha", detectou))                             
             ### End Work code
+
+            tempo_final = time.time_ns()
+            tempo_execucao.append(tempo_final-tempo_inicial)
 
             yield [pyRTOS.timeout(0.05)] 
 
@@ -301,7 +304,6 @@ if clientID!=-1:
                     
                 ### End Message Handler
 
-            tempo_inicial = time.time_ns()
             ### Work code here
             tempo_atual = time.time()
             if((tempo_atual - tempo_ligamento) > 60): # 30 segundos se passou desde o ligamento
@@ -311,8 +313,6 @@ if clientID!=-1:
                 
             ### End Work code
 
-            #tempo_final = time.time_ns()
-            #tempo_execucao.append(tempo_final-tempo_inicial)
 
             yield [pyRTOS.timeout(10.0)]
 
@@ -355,7 +355,7 @@ if clientID!=-1:
                 print("Sistema desligado!")
                 print("Terminando a comunicação com o Coppelia!")
                 sim.simxFinish(-1)
-                #print(tempo_execucao)
+                print(tempo_execucao)
                 exit()
 
             ### End Work code
